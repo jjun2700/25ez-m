@@ -90,7 +90,8 @@ def render_password_change_form():
             else:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "UPDATE M8_Person SET PW = ? WHERE Person = ?",
+#                    "UPDATE M8_Person SET PW = ? WHERE Person = ?",
+                    "UPDATE M8_Person SET PW = %s WHERE Person = %s",
                     [new_pw, st.session_state.user_id]
                 )
                 conn.commit()
