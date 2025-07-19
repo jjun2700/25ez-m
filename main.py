@@ -32,19 +32,24 @@ with st.sidebar:
 if st.session_state.logged_in:
     draw_sidebar_controls()  # 검색 기능 포함 사이드바 UI 렌더링
     
-    conn = get_connection()  # DB 연결
+    if st.session_state.get("show_pw_change"):
+        # 🔹 토글 켜졌을 때 검색모드도 초기화
+        st.session_state.search_mode = ""
+        pass
+    else:
+        conn = get_connection()  # DB 연결
 
-    # 검색 모드에 따라 다른 처리 실행
-    match st.session_state.search_mode:
-        case "pn_search":
-            handle_pn_search(conn, st.session_state.selected_pn)
-        case "order_going":
-            handle_order_going_search(conn)
-        case "wip_search":
-            handle_wip_search(conn)
-        case _:
-            st.info("사이드바에서 PN을 입력하거나 검색 버튼을 눌러주세요.")
+        # 검색 모드에 따라 다른 처리 실행
+        match st.session_state.search_mode:
+            case "pn_search":
+                handle_pn_search(conn, st.session_state.selected_pn)
+            case "order_going":
+                handle_order_going_search(conn)
+            case "wip_search":
+                handle_wip_search(conn)
+            case _:
+                st.info("사이드바에서 PN을 입력하거나 검색 버튼을 눌러주세요.")
 
-    conn.close()  # DB 연결 종료
+        conn.close()  # DB 연결 종료
 else:
     st.info("사이드바에서 로그인을 해주세요.")

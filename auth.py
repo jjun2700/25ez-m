@@ -66,11 +66,11 @@ def render_user_info():
         # 🔹 토글 결과만 세션에 저장
         st.session_state.show_pw_change = st.toggle("PW 변경", key="pw_change_toggle")
 
-    # 🔹 토글이 켜졌다면 사이드바 아래 전체에서 폼 표시
+    # 🔹 새 비밀번호 입력 및 변경
     if st.session_state.show_pw_change:
         render_password_change_form()
 
-        
+
 def render_password_change_form():
     # 비밀번호 변경 입력 폼 및 처리 로직
     st.markdown("---")
