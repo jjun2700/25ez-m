@@ -92,7 +92,7 @@ def show_pn_details(conn, pn):
     # 수율 데이터 쿼리
     query = "SELECT NDate_dt As 공정일, PN_dt As PN, LN_dt As LN, QN_dt As 투입수, QP_dt As 통과수, (CAST(QP_dt AS FLOAT) / NULLIF(QN_dt, 0) * 100) AS 수율"
 #    query = query + " FROM M8_LOT_Do_Test WHERE PN_dt = ? ORDER BY LN DESC"
-    query = query + " FROM M8_LOT_Do_Test WHERE PN_dt = $s ORDER BY LN DESC"
+    query = query + " FROM M8_LOT_Do_Test WHERE PN_dt = %s ORDER BY LN DESC"
     
     st.subheader("🔸 LOT 수율", divider=True)
 
