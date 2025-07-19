@@ -60,9 +60,19 @@ def render_user_info():
             st.rerun()
 
     with col2:
-        if st.toggle("PW 변경", key="pw_change_toggle"):
-            render_password_change_form()
+#        if st.toggle("PW 변경", key="pw_change_toggle"):
+#            render_password_change_form()
 
+        # 🔹 토글 값만 세션에 저장 (폼 실행 X)
+#        st.session_state.show_pw_change = st.toggle("PW 변경", key="pw_change_toggle")
+
+        pw_toggle = st.toggle("PW 변경", key="pw_change_toggle")
+
+        # 토글 상태가 변경될 경우에만 search_mode 초기화
+        if pw_toggle != st.session_state.get("show_pw_change", False):
+            st.session_state.search_mode = ""  # 기존 PN 검색 결과 초기화
+
+        st.session_state.show_pw_change = pw_toggle
 
 def render_password_change_form():
     # 비밀번호 변경 입력 폼 및 처리 로직
