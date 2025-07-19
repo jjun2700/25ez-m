@@ -20,7 +20,7 @@ def show_pn_details(conn, pn):
     with col2:
         st.markdown(    # 합계 표시
     #        f"<div style='text-align:right; font-size:15px; color:#333; font-weight:bold;'>   재고 합계 : {total_qty:,} </div>",
-            f"<div style='font-size:15px; color:#333; font-weight:bold;'>   재고 합계 : {total_qty:,} </div>",
+            f"<div style='text-align:bottom; font-size:15px; color:#333; font-weight:bold;'>   재고 합계 : {total_qty:,} </div>",
     #        f"<div style='font-size:15px; color:#333; font-weight:bold;'>{'&nbsp;' * 30}재고 합계 : {total_qty:,}</div>",
             unsafe_allow_html=True
         )
@@ -37,8 +37,8 @@ def show_pn_details(conn, pn):
     total_qty = wip_df["예상양품"].sum()
 
     st.markdown(    # 합계 표시
-#        f"<div style='text-align:right; font-size:15px; color:#333; font-weight:bold;'>   재공 합계 : {total_qty:,} </div>",
-        f"<div style='font-size:15px; color:#333; font-weight:bold;'>{'&nbsp;' * 30}재공 합계 : {total_qty:,}</div>",
+        f"<br><div style='text-align:right; font-size:15px; color:#333; font-weight:bold;'>   재공 합계 : {total_qty:,} </div>",
+#        f"<div style='font-size:15px; color:#333; font-weight:bold;'>{'&nbsp;' * 30}재공 합계 : {total_qty:,}</div>",
         unsafe_allow_html=True
     )
 
@@ -72,8 +72,8 @@ def show_pn_details(conn, pn):
     total_qty = delivery_df["납품수량"].sum()
 
     st.markdown(    # 합계 표시
-#        f"<div style='text-align:right; font-size:15px; color:#333; font-weight:bold;'>   납품 합계 : {total_qty:,} </div>",
-        f"<div style='font-size:15px; color:#333; font-weight:bold;'>{'&nbsp;' * 30}납품 합계 : {total_qty:,}</div>",
+        f"<br><div style='text-align:right; font-size:15px; color:#333; font-weight:bold;'>   납품 합계 : {total_qty:,} </div>",
+#        f"<div style='font-size:15px; color:#333; font-weight:bold;'>{'&nbsp;' * 30}납품 합계 : {total_qty:,}</div>",
         unsafe_allow_html=True
     )
 
