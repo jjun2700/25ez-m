@@ -8,8 +8,12 @@ from db_config import get_connection
 def authenticate(user_id, password):
     # 사용자 ID와 비밀번호를 검증하는 함수
     conn = get_connection()
-    query = "SELECT * FROM M8_Person WHERE Person = ? AND PW = ?"
+    #query = "SELECT * FROM M8_Person WHERE Person = ? AND PW = ?"
+    #df = pd.read_sql(query, conn, params=[user_id, password])
+
+    query = "SELECT * FROM M8_Person WHERE Person = %s AND PW = %s"
     df = pd.read_sql(query, conn, params=[user_id, password])
+
     conn.close()
     return not df.empty
 
