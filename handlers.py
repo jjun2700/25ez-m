@@ -8,10 +8,9 @@ from views import show_pn_details
 
 def handle_pn_search(conn, pn_input):
     # PN 검색 결과를 보여주고 사용자가 하나를 선택하면 상세정보 표시
-    query = '''
-        SELECT DISTINCT PN_l AS PN FROM M8_LOT WHERE PN_l LIKE ? 
-        ORDER BY PN
-    '''
+#    query = "SELECT DISTINCT PN_l AS PN FROM M8_LOT WHERE PN_l LIKE ? ORDER BY PN"
+    query = "SELECT DISTINCT PN_l AS PN FROM M8_LOT WHERE PN_l LIKE %s ORDER BY PN"
+
     df = pd.read_sql(query, conn, params=[pn_input + '%'])
 
     if df.empty:
