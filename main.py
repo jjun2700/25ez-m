@@ -32,10 +32,6 @@ with st.sidebar:
 if st.session_state.logged_in:
     draw_sidebar_controls()  # 검색 기능 포함 사이드바 UI 렌더링
     
-    # 🔹 비밀번호 변경 폼은 메인 화면 전체 영역에 출력
-    if st.session_state.get("show_pw_change"):
-        render_password_change_form()
-
     conn = get_connection()  # DB 연결
 
     # 검색 모드에 따라 다른 처리 실행
