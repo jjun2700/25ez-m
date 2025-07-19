@@ -8,10 +8,9 @@ from db_config import get_connection
 def authenticate(user_id, password):
     # 사용자 ID와 비밀번호를 검증하는 함수
     conn = get_connection()
-    #query = "SELECT * FROM M8_Person WHERE Person = ? AND PW = ?"
-    #df = pd.read_sql(query, conn, params=[user_id, password])
-
+#    query = "SELECT * FROM M8_Person WHERE Person = ? AND PW = ?"
     query = "SELECT * FROM M8_Person WHERE Person = %s AND PW = %s"
+
     df = pd.read_sql(query, conn, params=[user_id, password])
 
     conn.close()
@@ -40,13 +39,9 @@ def log_login(user_id):
     try:
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO M8_Log (TLog, Person, NProg, SInout)
-            VALUES (GETDATE(), ?, 21, 'I')
-            """,
-            [user_id]
-        )
+#        cursor.execute("INSERT INTO M8_Log (TLog, Person, NProg, SInout) VALUES (GETDATE(), ?, 21, 'I')", [user_id])
+        cursor.execute("INSERT INTO M8_Log (TLog, Person, NProg, SInout) VALUES (GETDATE(), %s, 21, 'I')", [user_id])
+        
         conn.commit()
         conn.close()
     except Exception as e:
@@ -86,7 +81,8 @@ def render_password_change_form():
         else:
             conn = get_connection()
             check = pd.read_sql(
-                "SELECT * FROM M8_Person WHERE Person = ? AND PW = ?",
+#                "SELECT * FROM M8_Person WHERE Person = ? AND PW = ?",
+                "SELECT * FROM M8_Person WHERE Person = %s AND PW = %s",
                 conn, params=[st.session_state.user_id, current_pw]
             )
             if check.empty:
