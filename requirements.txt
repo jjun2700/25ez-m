@@ -1,5 +1,5 @@
 streamlit
 pandas
-pyodbc
 matplotlib
 pymssql
+python-dotenv
