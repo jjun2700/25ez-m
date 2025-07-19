@@ -16,7 +16,7 @@ def show_pn_details(conn, pn):
     st.subheader("🔸 재고 현황", divider=True)
     st.markdown(    # 합계 표시
 #        f"<div style='text-align:right; font-size:15px; color:#333; font-weight:bold;'>   재고 합계 : {total_qty:,} </div>",
-        f"<div style='font-size:15px; color:#333; font-weight:bold;'>{'&nbsp;' * 10}재고 합계 : {total_qty:,}</div>",
+        f"<div style='font-size:15px; color:#333; font-weight:bold;'>{'&nbsp;' * 30}재고 합계 : {total_qty:,}</div>",
         unsafe_allow_html=True
     )
     st.dataframe(stock_df)
@@ -32,7 +32,7 @@ def show_pn_details(conn, pn):
 
     st.markdown(    # 합계 표시
 #        f"<div style='text-align:right; font-size:15px; color:#333; font-weight:bold;'>   재공 합계 : {total_qty:,} </div>",
-        f"<div style='font-size:15px; color:#333; font-weight:bold;'>{'&nbsp;' * 20}재공 합계 : {total_qty:,}</div>",
+        f"<div style='font-size:15px; color:#333; font-weight:bold;'>{'&nbsp;' * 30}재공 합계 : {total_qty:,}</div>",
         unsafe_allow_html=True
     )
 
@@ -67,7 +67,7 @@ def show_pn_details(conn, pn):
 
     st.markdown(    # 합계 표시
 #        f"<div style='text-align:right; font-size:15px; color:#333; font-weight:bold;'>   납품 합계 : {total_qty:,} </div>",
-        f"<div style='font-size:15px; color:#333; font-weight:bold;'>{'&nbsp;' * 40}납품 합계 : {total_qty:,}</div>",
+        f"<div style='font-size:15px; color:#333; font-weight:bold;'>{'&nbsp;' * 30}납품 합계 : {total_qty:,}</div>",
         unsafe_allow_html=True
     )
 
@@ -127,7 +127,7 @@ def show_pn_details(conn, pn):
     # 테이블은 접기(expander)에 넣기
     st.markdown(
 #        f"<div style='text-align:right; font-size:15px; color:#333; font-weight:bold;'> 생산 누계 : {total_qty:,}</div>",
-        f"<div style='font-size:15px; color:#333; font-weight:bold;'>{'&nbsp;' * 50}생산 누계 : {total_qty:,}</div>",
+        f"<div style='font-size:15px; color:#333; font-weight:bold;'>{'&nbsp;' * 30}생산 누계 : {total_qty:,}</div>",
         unsafe_allow_html=True
     )
     with st.expander("▶ 수율 데이터 보기"):

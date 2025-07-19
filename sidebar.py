@@ -30,7 +30,7 @@ def draw_sidebar_controls():
             st.rerun()
 
         st.divider()
-        st.subheader("🗂 구글드라이브 검색")
+        st.subheader("🌐 인터넷 검색")
 
         # ✅ 생산지도서 검색 버튼 추가
         if st.button("📁 생산지도서 검색"):
@@ -38,6 +38,16 @@ def draw_sidebar_controls():
             if search_query:
                 drive_url = f"https://drive.google.com/drive/search?q={search_query}"
                 js = f"window.open('{drive_url}')"  # 새 탭으로 열기
+                st.components.v1.html(f"<script>{js}</script>")
+            else:
+                st.warning("PN을 먼저 입력해 주세요.")
+
+        # 🕵️‍♂️ 구글 웹 검색
+        if st.button("🕵️‍♂️ 구글 검색"):
+            search_query = st.session_state.get("pn_input", "")
+            if search_query:
+                google_url = f"https://www.google.com/search?q={search_query}"
+                js = f"window.open('{google_url}')"
                 st.components.v1.html(f"<script>{js}</script>")
             else:
                 st.warning("PN을 먼저 입력해 주세요.")
