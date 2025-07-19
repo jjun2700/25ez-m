@@ -28,3 +28,16 @@ def draw_sidebar_controls():
         if st.button("재공 검색"):
             st.session_state.search_mode = "wip_search"  # 검색 모드 설정
             st.rerun()
+
+        st.divider()
+        st.subheader("🗂 구글드라이브 검색")
+
+        # ✅ 생산지도서 검색 버튼 추가
+        if st.button("📁 생산지도서 검색"):
+            search_query = st.session_state.get("pn_input", "")
+            if search_query:
+                drive_url = f"https://drive.google.com/drive/search?q={search_query}"
+                js = f"window.open('{drive_url}')"  # 새 탭으로 열기
+                st.components.v1.html(f"<script>{js}</script>")
+            else:
+                st.warning("PN을 먼저 입력해 주세요.")
