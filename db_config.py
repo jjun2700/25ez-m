@@ -9,14 +9,14 @@ IS_STREAMLIT_CLOUD = os.getenv("STREAMLIT_RUNTIME") is not None
 
 # 환경에 따라 필요한 모듈만 import
 if IS_STREAMLIT_CLOUD:
-    import pymysql  # MySQL
+    import pymssql  # MySQL
 else:
     import pyodbc   # MSSQL
 
 def get_connection():
     if IS_STREAMLIT_CLOUD:
         # Cloud 환경 → MySQL 사용
-        return pymysql.connect(
+        return pymssql.connect(
             host=os.getenv('DB_SERVER'),
             user=os.getenv('DB_USER'),
             password=os.getenv('DB_PASSWORD'),
