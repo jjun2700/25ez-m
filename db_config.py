@@ -1,21 +1,26 @@
 import os
 from dotenv import load_dotenv
 
-# 로컬 개발 환경에서만 .env 로드 (Cloud는 Secrets 사용)
+# .env 파일 로드 (로컬 전용)
 load_dotenv()
 
-# Streamlit Cloud 여부 감지
+# Streamlit Cloud 환경 감지
 IS_STREAMLIT_CLOUD = os.getenv("STREAMLIT_RUNTIME") is not None
 
 # 환경에 따라 필요한 모듈만 import
-if IS_STREAMLIT_CLOUD:
-    import pymysql  # MySQL
-else:
-    import pyodbc   # MSSQL
+try:
+    if IS_STREAMLIT_CLOUD:
+        import pymysql  # MySQL
+    else:
+        import pyodbc   # MSSQL
+except ModuleNotFoundError as e:
+    # pyodbc가 없는 Cloud 환경에서의 안전 처리
+    if not IS_STREAMLIT_CLOUD:
+        raise e
 
 def get_connection():
     if IS_STREAMLIT_CLOUD:
-        # Cloud 환경 → MySQL 사용
+        # Cloud → MySQL 연결
         return pymysql.connect(
             host=os.getenv('DB_SERVER'),
             user=os.getenv('DB_USER'),
@@ -25,7 +30,7 @@ def get_connection():
             cursorclass=pymysql.cursors.DictCursor
         )
     else:
-        # 로컬 환경 → MSSQL 사용 (pyodbc)
+        # 로컬 → MSSQL 연결
         return pyodbc.connect(
             f"DRIVER={{ODBC Driver 17 for SQL Server}};"
             f"SERVER={os.getenv('DB_SERVER')};"
