@@ -1,13 +1,12 @@
 import streamlit as st
-from db_config import get_connection
-from auth import render_login_form, render_user_info, render_password_change_form
-from sidebar import draw_sidebar_controls
-from handlers import handle_pn_search, handle_order_going_search, handle_wip_search
+from auth import render_login_form, render_user_info
+from ui_saw import render_saw_tab
+from ui_microwave import render_microwave_tab
+from ui_project import render_project_tab
 
 # ----------------------------
 # 세션 상태 초기화
 # ----------------------------
-# 로그인 여부, 사용자 ID, 검색 모드, 선택된 PN 정보를 세션 상태에 저장
 for key, default in {
     "logged_in": False,
     "user_id": None,
@@ -18,38 +17,51 @@ for key, default in {
         st.session_state[key] = default
 
 # ----------------------------
-# 사이드바 영역: 로그인 또는 사용자 정보 출력
+# 사이드바: 로그인/로그아웃
 # ----------------------------
 with st.sidebar:
     if not st.session_state.logged_in:
-        render_login_form()  # 로그인 폼 렌더링
+        render_login_form()
     else:
-        render_user_info()  # 사용자 정보 및 로그아웃, 비밀번호 변경
+        render_user_info()
 
 # ----------------------------
-# 로그인 후 메인 기능 실행
+# 로그인 후 탭 UI 표시
 # ----------------------------
 if st.session_state.logged_in:
-    draw_sidebar_controls()  # 검색 기능 포함 사이드바 UI 렌더링
-    
-    if st.session_state.get("show_pw_change"):
-        # 🔹 토글 켜졌을 때 검색모드도 초기화
-        st.session_state.search_mode = ""
-        pass
-    else:
-        conn = get_connection()  # DB 연결
 
-        # 검색 모드에 따라 다른 처리 실행
-        match st.session_state.search_mode:
-            case "pn_search":
-                handle_pn_search(conn, st.session_state.selected_pn)
-            case "order_going":
-                handle_order_going_search(conn)
-            case "wip_search":
-                handle_wip_search(conn)
-            case _:
-                st.info("사이드바에서 PN을 입력하거나 검색 버튼을 눌러주세요.")
+    st.markdown("""
+        <style>
+        /* 비활성 탭 버튼 텍스트 */
+        div[data-testid="stTabs"] button[role="tab"] > div > p,
+        div[data-testid="stTabs"] button[role="tab"] > div > span {
+            font-size: 18px !important;     /* 글자 크기 키움 */
+            font-weight: 500 !important;    /* 중간 두께 */
+            color: #777 !important;         /* 회색 글씨 */
+            margin: 0 !important;
+        }
 
-        conn.close()  # DB 연결 종료
+        /* 활성 탭 버튼 텍스트 */
+        div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] > div > p,
+        div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] > div > span {
+            font-size: 24px !important;     /* 글자 더 크게 */
+            font-weight: bold !important;   /* 굵게 */
+            color: #000 !important;         /* 검정색 글씨 */
+            margin: 0 !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    tabs = st.tabs(["SAW", "Microwave", "Project"])
+
+    with tabs[0]:
+        render_saw_tab()
+
+    with tabs[1]:
+        render_microwave_tab()
+
+    with tabs[2]:
+        render_project_tab()
+
 else:
     st.info("사이드바에서 로그인을 해주세요.")

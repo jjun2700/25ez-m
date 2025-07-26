@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from db_config import get_connection
+from db_config import get_connection, IS_STREAMLIT_CLOUD
 
 # 사용자 인증 및 비밀번호 변경 관련 기능 정의
 # 로그인, 로그아웃, 비밀번호 변경 UI와 로직을 포함함
@@ -8,8 +8,11 @@ from db_config import get_connection
 def authenticate(user_id, password):
     # 사용자 ID와 비밀번호를 검증하는 함수
     conn = get_connection()
-#    query = "SELECT * FROM M8_Person WHERE Person = ? AND PW = ?"
-    query = "SELECT * FROM M8_Person WHERE Person = %s AND PW = %s"
+
+    if IS_STREAMLIT_CLOUD:
+        query = "SELECT * FROM M8_Person WHERE Person = %s AND PW = %s"
+    else:
+        query = "SELECT * FROM M8_Person WHERE Person = ? AND PW = ?"
 
     df = pd.read_sql(query, conn, params=[user_id, password])
 
@@ -39,8 +42,11 @@ def log_login(user_id):
     try:
         conn = get_connection()
         cursor = conn.cursor()
-#        cursor.execute("INSERT INTO M8_Log (TLog, Person, NProg, SInout) VALUES (GETDATE(), ?, 21, 'I')", [user_id])
-        cursor.execute("INSERT INTO M8_Log (TLog, Person, NProg, SInout) VALUES (GETDATE(), %s, 21, 'I')", [user_id])
+
+        if IS_STREAMLIT_CLOUD:
+            cursor.execute("INSERT INTO M8_Log (TLog, Person, NProg, SInout) VALUES (GETDATE(), %s, 21, 'I')", [user_id])
+        else:
+            cursor.execute("INSERT INTO M8_Log (TLog, Person, NProg, SInout) VALUES (GETDATE(), ?, 21, 'I')", [user_id])
         
         conn.commit()
         conn.close()
@@ -60,9 +66,6 @@ def render_user_info():
             st.rerun()
 
     with col2:
-#        if st.toggle("PW 변경", key="pw_change_toggle"):
-#            render_password_change_form()
-
         # 🔹 토글 결과만 세션에 저장
         st.session_state.show_pw_change = st.toggle("PW 변경", key="pw_change_toggle")
 
@@ -80,6 +83,14 @@ def render_password_change_form():
     new_pw = st.text_input("새 비밀번호", type="password")
     confirm_pw = st.text_input("새 비밀번호 확인", type="password")
 
+    if IS_STREAMLIT_CLOUD:
+        query_select = "SELECT * FROM M8_Person WHERE Person = %s AND PW = %s"
+        query_update = "UPDATE M8_Person SET PW = %s WHERE Person = %s"
+    else:
+        query_select = "SELECT * FROM M8_Person WHERE Person = ? AND PW = ?"
+        query_update = "UPDATE M8_Person SET PW = ? WHERE Person = ?"
+
+
     if st.button("변경하기"):
         if new_pw != confirm_pw:
             st.error("새 비밀번호가 일치하지 않습니다.")
@@ -87,20 +98,12 @@ def render_password_change_form():
             st.warning("비밀번호는 최소 4자 이상이어야 합니다.")
         else:
             conn = get_connection()
-            check = pd.read_sql(
-#                "SELECT * FROM M8_Person WHERE Person = ? AND PW = ?",
-                "SELECT * FROM M8_Person WHERE Person = %s AND PW = %s",
-                conn, params=[st.session_state.user_id, current_pw]
-            )
+            check = pd.read_sql(query_select, conn, params=[st.session_state.user_id, current_pw])
             if check.empty:
                 st.error("현재 비밀번호가 올바르지 않습니다.")
             else:
                 cursor = conn.cursor()
-                cursor.execute(
-#                    "UPDATE M8_Person SET PW = ? WHERE Person = ?",
-                    "UPDATE M8_Person SET PW = %s WHERE Person = %s",
-                    [new_pw, st.session_state.user_id]
-                )
+                cursor.execute(query_update, [new_pw, st.session_state.user_id])
                 conn.commit()
                 st.success("비밀번호가 성공적으로 변경되었습니다.")
             conn.close()
