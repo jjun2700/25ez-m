@@ -30,6 +30,12 @@ def render_login_form():
         if authenticate(input_id, input_pw):
             st.session_state.logged_in = True
             st.session_state.user_id = input_id
+
+            # 로그인 성공 시 검색 상태 초기화
+            st.session_state.search_mode = ""
+            st.session_state.selected_pn = ""
+            st.session_state.pn_input = ""
+
             log_login(input_id)  # 로그인 로그 기록
             st.success("로그인 성공")
             st.rerun()
