@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import time
 from db_config import get_connection, IS_STREAMLIT_CLOUD
 
 # 핸들러 함수 정의
@@ -53,6 +54,7 @@ def handle_order_going_search(conn):
     else:
         st.session_state.selected_pn = selected_rows.iloc[0]["PN"]
         st.session_state.search_mode = "pn_search"
+        time.sleep(0.3)
         st.rerun()
 
 def handle_wip_search(conn):
@@ -75,4 +77,5 @@ def handle_wip_search(conn):
     else:
         st.session_state.selected_pn = selected_rows.iloc[0]["PN"]
         st.session_state.search_mode = "pn_search"
+        time.sleep(0.3)
         st.rerun()
