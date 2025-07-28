@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import time
 from db_config import get_connection, IS_STREAMLIT_CLOUD
 
 # 핸들러 함수 정의
@@ -20,17 +19,37 @@ def handle_pn_search(conn, pn_input):
         st.warning("조건에 맞는 PN이 없습니다.")
         return
 
+    # 검색 결과가 1개인 경우 자동으로 선택하고 상세정보 표시
+    if len(df) == 1:
+        selected_pn = df.iloc[0]["PN"]
+#        st.success(f"[{selected_pn}] PN을 자동 선택했습니다.")
+        st.markdown(f"#### 🎯 **----- 제품 상세 정보 [{selected_pn}] -----**")
+        show_pn_details(conn, selected_pn)
+        return
+
+    # 검색 결과가 여러개인 경우 선택 UI 제공
     df["선택"] = False
     st.subheader("✅ PN 리스트 (하나만 선택 가능)", divider=True)
-    edited_df = st.data_editor(df, use_container_width=True, num_rows="fixed", key="pn_table")
+    
+    # 선택 상태를 위한 unique key 생성
+    table_key = f"pn_table_{hash(pn_input)}"
+    edited_df = st.data_editor(df, use_container_width=True, num_rows="fixed", key=table_key)
     selected_rows = edited_df[edited_df["선택"] == True]
 
     if len(selected_rows) > 1:
         st.error("⚠️ 하나만 선택해 주세요.")
     elif len(selected_rows) == 1:
         selected_pn = selected_rows.iloc[0]["PN"]
+        
+        # 선택한 PN을 session_state에 저장
+        st.session_state.selected_pn_from_search = selected_pn
+        st.session_state.pn_search_completed = True
+        st.session_state.show_details_immediately = True  # 즉시 상세화면 표시 플래그
+        
         st.success(f"[{selected_pn}] PN을 선택하셨습니다.")
-        show_pn_details(conn, selected_pn)
+        
+        # 페이지 새로고침하여 입력창 업데이트 및 상세화면 표시
+        st.rerun()
     else:
         st.info("→ 하나의 PN을 선택해 주세요.")
 
@@ -52,9 +71,8 @@ def handle_order_going_search(conn):
     if len(selected_rows) < 1:
         st.info("→ 하나의 PN을 선택해 주세요.")
     else:
-        st.session_state.selected_pn = selected_rows.iloc[0]["PN"]
+        st.session_state.selected_pn_from_search = selected_rows.iloc[0]["PN"]
         st.session_state.search_mode = "pn_search"
-        time.sleep(0.3)
         st.rerun()
 
 def handle_wip_search(conn):
@@ -75,7 +93,6 @@ def handle_wip_search(conn):
     if len(selected_rows) < 1:
         st.info("→ 하나의 PN을 선택해 주세요.")
     else:
-        st.session_state.selected_pn = selected_rows.iloc[0]["PN"]
+        st.session_state.selected_pn_from_search = selected_rows.iloc[0]["PN"]
         st.session_state.search_mode = "pn_search"
-        time.sleep(0.3)
         st.rerun()

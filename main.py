@@ -11,7 +11,9 @@ for key, default in {
     "logged_in": False,
     "user_id": None,
     "search_mode": "",
-    "selected_pn": ""
+    "selected_pn": "",
+    "selected_pn_from_search": "",  # 추가: 검색에서 선택한 PN 저장
+    "pn_search_completed": False    # 추가: 검색 완료 플래그
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
@@ -40,7 +42,7 @@ if st.session_state.logged_in:
             color: #777 !important;         /* 회색 글씨 */
             margin: 0 !important;
         }
-
+                
         /* 활성 탭 버튼 텍스트 */
         div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] > div > p,
         div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] > div > span {
@@ -64,4 +66,4 @@ if st.session_state.logged_in:
         render_project_tab()
 
 else:
-    st.info("사이드바에서 로그인을 해주세요.")
+    st.info("사이드바에서 로그인을 해주세요.")                
