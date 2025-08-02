@@ -98,82 +98,127 @@ def handle_wip_search(conn):
         st.rerun()
 
 def handle_excess_quantity_search(conn):
-    """초과수량 검색 - 미납수주에 있는 모든 PN의 재고합계, 재공합계, 미납수주합계를 계산하여 표시"""
+    """초과수량 검색 - SQL Server용 JOIN 최적화 버전"""
     
-    # 1. 미납수주에서 유니크한 PN 목록 조회
-    unique_pn_query = "SELECT DISTINCT PN_g AS PN FROM M8_Order_Going ORDER BY PN"
-    unique_pns = pd.read_sql(unique_pn_query, conn)
+    if IS_STREAMLIT_CLOUD:
+        # Streamlit Cloud용 쿼리 (MySQL/PostgreSQL 스타일)
+        query = '''
+        SELECT 
+            o.PN,
+            COALESCE(s.stock_total, 0) as stock_total,
+            COALESCE(w.wip_total, 0) as wip_total,
+            o.order_g_total,
+            COALESCE(c.customer_name, '-') as customer_name,
+            (COALESCE(s.stock_total, 0) + COALESCE(w.wip_total, 0) - o.order_g_total) as excess_quantity
+        FROM (
+            SELECT 
+                PN_g AS PN,
+                SUM(QResidual_g) as order_g_total
+            FROM M8_Order_Going
+            GROUP BY PN_g
+        ) o
+        LEFT JOIN (
+            SELECT 
+                PN_s AS PN,
+                SUM(Qty_s) as stock_total
+            FROM M8_MG_Stock
+            GROUP BY PN_s
+        ) s ON o.PN = s.PN
+        LEFT JOIN (
+            SELECT 
+                PN_w AS PN,
+                SUM(QGoods_w) as wip_total
+            FROM M8_LOT_WIP
+            GROUP BY PN_w
+        ) w ON o.PN = w.PN
+        LEFT JOIN (
+            SELECT DISTINCT
+                PN_g AS PN,
+                FIRST_VALUE(Customer_g) OVER (PARTITION BY PN_g ORDER BY DDeadline_g ASC) as customer_name
+            FROM M8_Order_Going
+        ) c ON o.PN = c.PN
+        ORDER BY excess_quantity ASC
+        '''
+    else:
+        # SQL Server용 쿼리
+        query = '''
+        SELECT 
+            o.PN,
+            COALESCE(s.stock_total, 0) as stock_total,
+            COALESCE(w.wip_total, 0) as wip_total,
+            o.order_g_total,
+            COALESCE(c.customer_name, '-') as customer_name,
+            (COALESCE(s.stock_total, 0) + COALESCE(w.wip_total, 0) - o.order_g_total) as excess_quantity
+        FROM (
+            SELECT 
+                PN_g AS PN,
+                SUM(QResidual_g) as order_g_total
+            FROM M8_Order_Going
+            GROUP BY PN_g
+        ) o
+        LEFT JOIN (
+            SELECT 
+                PN_s AS PN,
+                SUM(Qty_s) as stock_total
+            FROM M8_MG_Stock
+            GROUP BY PN_s
+        ) s ON o.PN = s.PN
+        LEFT JOIN (
+            SELECT 
+                PN_w AS PN,
+                SUM(QGoods_w) as wip_total
+            FROM M8_LOT_WIP
+            GROUP BY PN_w
+        ) w ON o.PN = w.PN
+        LEFT JOIN (
+            SELECT DISTINCT
+                PN_g AS PN,
+                FIRST_VALUE(Customer_g) OVER (PARTITION BY PN_g ORDER BY DDeadline_g ASC) as customer_name
+            FROM M8_Order_Going
+        ) c ON o.PN = c.PN
+        ORDER BY excess_quantity ASC
+        '''
     
-    if unique_pns.empty:
-        st.warning("미납수주 데이터가 없습니다.")
+    try:
+        # 한 번의 쿼리로 모든 데이터 조회
+        df_result = pd.read_sql(query, conn)
+        
+        if df_result.empty:
+            st.warning("미납수주 데이터가 없습니다.")
+            return
+        
+        # 결과 데이터 정리
+        result_data = []
+        for _, row in df_result.iterrows():
+            result_data.append({
+                'PN': row['PN'],
+                '선택': False,
+                '초과수량': int(row['excess_quantity']),
+                '고객명': row['customer_name'] if pd.notna(row['customer_name']) else "-",
+                '재고합계': int(row['stock_total']) if pd.notna(row['stock_total']) else 0,
+                '재공합계': int(row['wip_total']) if pd.notna(row['wip_total']) else 0,
+                '미납수주합계': int(row['order_g_total']) if pd.notna(row['order_g_total']) else 0
+            })
+        
+        # 데이터프레임 생성
+        df = pd.DataFrame(result_data)
+        
+        if df.empty:
+            st.warning("계산할 데이터가 없습니다.")
+            return
+        
+    except Exception as e:
+        st.error(f"데이터베이스 쿼리 실행 중 오류가 발생했습니다: {str(e)}")
+        st.info("기존 방식으로 처리합니다...")
+        
+        # 기존 for 문 방식으로 fallback
+        handle_excess_quantity_search_fallback(conn)
         return
     
-    result_data = []
-    
-    for _, row in unique_pns.iterrows():
-        pn = row['PN']
-        
-        # 재고합계 조회
-        if IS_STREAMLIT_CLOUD:
-            stock_query = "SELECT COALESCE(SUM(Qty_s), 0) as stock_total FROM M8_MG_Stock WHERE PN_s = %s"
-        else:
-            stock_query = "SELECT COALESCE(SUM(Qty_s), 0) as stock_total FROM M8_MG_Stock WHERE PN_s = ?"
-        
-        stock_result = pd.read_sql(stock_query, conn, params=[pn])
-        stock_total = stock_result.iloc[0]['stock_total'] if not stock_result.empty else 0
-        
-        # 재공합계 조회 (예상양품 기준)
-        if IS_STREAMLIT_CLOUD:
-            wip_query = "SELECT COALESCE(SUM(QGoods_w), 0) as wip_total FROM M8_LOT_WIP WHERE PN_w = %s"
-        else:
-            wip_query = "SELECT COALESCE(SUM(QGoods_w), 0) as wip_total FROM M8_LOT_WIP WHERE PN_w = ?"
-        
-        wip_result = pd.read_sql(wip_query, conn, params=[pn])
-        wip_total = wip_result.iloc[0]['wip_total'] if not wip_result.empty else 0
-        
-        # 미납수주합계 조회
-        if IS_STREAMLIT_CLOUD:
-            order_query = "SELECT COALESCE(SUM(QResidual_g), 0) as order_g_total FROM M8_Order_Going WHERE PN_g = %s"
-        else:
-            order_query = "SELECT COALESCE(SUM(QResidual_g), 0) as order_g_total FROM M8_Order_Going WHERE PN_g = ?"
-        
-        order_result = pd.read_sql(order_query, conn, params=[pn])
-        order_g_total = order_result.iloc[0]['order_g_total'] if not order_result.empty else 0
-        
-        # 🆕 미납수주 고객명 조회 (DDeadline_g가 가장 빠른 1개)
-        if IS_STREAMLIT_CLOUD:
-            customer_query = "SELECT TOP 1 Customer_g FROM M8_Order_Going WHERE PN_g = %s ORDER BY DDeadline_g ASC"
-        else:
-            customer_query = "SELECT TOP 1 Customer_g FROM M8_Order_Going WHERE PN_g = ? ORDER BY DDeadline_g ASC"
-
-        customer_result = pd.read_sql(customer_query, conn, params=[pn])
-        customer_name = customer_result.iloc[0]['Customer_g'] if not customer_result.empty else "-"
-
-        # 초과수량 계산 (재고합계 + 재공합계 - 미납수주합계)
-        excess_quantity = stock_total + wip_total - order_g_total
-        
-        result_data.append({
-            'PN': pn,
-            '선택': False,
-            '초과수량': int(excess_quantity),
-            '고객명': customer_name,
-            '재고합계': int(stock_total),
-            '재공합계': int(wip_total),
-            '미납수주합계': int(order_g_total)
-        })
-    
-    # 데이터프레임 생성 및 초과수량 기준으로 오름차순 정렬
-    df = pd.DataFrame(result_data)
-    df = df.sort_values('초과수량', ascending=True)  # ✨ 오름차순 정렬 추가
-    df = df.reset_index(drop=True)  # ✨ 인덱스 재설정으로 순번 문제 해결
-
-    if df.empty:
-        st.warning("계산할 데이터가 없습니다.")
-        return
-    
+    # 나머지 UI 코드는 기존과 동일...
     st.subheader("📊 초과 수량 현황", divider=True)
     
-    # ✨ 요약 정보를 "초과수량 현황" 바로 아래로 이동
+    # 요약 정보
     total_negative = len(df[df['초과수량'] < 0])
     total_positive = len(df[df['초과수량'] >= 0])
     
@@ -191,23 +236,23 @@ def handle_excess_quantity_search(conn):
             unsafe_allow_html=True
         )
 
-    # ✨ 초과수량에 따른 시각적 표시를 위한 새로운 컬럼 추가
+    # 초과수량에 따른 시각적 표시
     def format_excess_quantity(value):
         if value < -1000:
-            return f"🔴 {value:,}"  # 매우 부족
+            return f"🔴 {value:,}"
         elif value < -100:
-            return f"🟠 {value:,}"  # 부족
+            return f"🟠 {value:,}"
         elif value < 0:
-            return f"🟡 {value:,}"  # 약간 부족
+            return f"🟡 {value:,}"
         elif value < 10:
-            return f"⚪ {value:,}"  # 약간 여유
+            return f"⚪ {value:,}"
         else:
-            return f"🟢 {value:,}"  # 충분
+            return f"🟢 {value:,}"
     
     # 표시용 컬럼 추가
     df['상태'] = df['초과수량'].apply(format_excess_quantity)
     
-    # 데이터 에디터 (상태 컬럼 포함)
+    # 데이터 에디터
     edited_df = st.data_editor(
         df, 
         use_container_width=True, 
@@ -221,7 +266,6 @@ def handle_excess_quantity_search(conn):
                 width="medium",
                 help="🔴매우부족 🟠부족 🟡약간부족 ⚪약간여유 🟢충분"
             ),
-#            "초과수량": st.column_config.NumberColumn("초과수량", format="%d"),
             "재고합계": st.column_config.NumberColumn("재고합계", format="%d"),
             "재공합계": st.column_config.NumberColumn("재공합계", format="%d"),
             "미납수주합계": st.column_config.NumberColumn("미납수주합계", format="%d")
@@ -245,3 +289,70 @@ def handle_excess_quantity_search(conn):
         st.rerun()
     else:
         st.info("→ 상세정보를 보려면 하나의 PN을 선택해 주세요.")
+
+
+def handle_excess_quantity_search_fallback(conn):
+    """기존 for 문 방식 (fallback용)"""
+    # 기존 코드를 여기에 복사해서 사용
+    unique_pn_query = "SELECT DISTINCT PN_g AS PN FROM M8_Order_Going ORDER BY PN"
+    unique_pns = pd.read_sql(unique_pn_query, conn)
+    
+    if unique_pns.empty:
+        st.warning("미납수주 데이터가 없습니다.")
+        return
+    
+    result_data = []
+    
+    for _, row in unique_pns.iterrows():
+        pn = row['PN']
+        
+        # 재고합계 조회
+        if IS_STREAMLIT_CLOUD:
+            stock_query = "SELECT COALESCE(SUM(Qty_s), 0) as stock_total FROM M8_MG_Stock WHERE PN_s = %s"
+        else:
+            stock_query = "SELECT COALESCE(SUM(Qty_s), 0) as stock_total FROM M8_MG_Stock WHERE PN_s = ?"
+        
+        stock_result = pd.read_sql(stock_query, conn, params=[pn])
+        stock_total = stock_result.iloc[0]['stock_total'] if not stock_result.empty else 0
+        
+        # 재공합계 조회
+        if IS_STREAMLIT_CLOUD:
+            wip_query = "SELECT COALESCE(SUM(QGoods_w), 0) as wip_total FROM M8_LOT_WIP WHERE PN_w = %s"
+        else:
+            wip_query = "SELECT COALESCE(SUM(QGoods_w), 0) as wip_total FROM M8_LOT_WIP WHERE PN_w = ?"
+        
+        wip_result = pd.read_sql(wip_query, conn, params=[pn])
+        wip_total = wip_result.iloc[0]['wip_total'] if not wip_result.empty else 0
+        
+        # 미납수주합계 조회
+        if IS_STREAMLIT_CLOUD:
+            order_query = "SELECT COALESCE(SUM(QResidual_g), 0) as order_g_total FROM M8_Order_Going WHERE PN_g = %s"
+        else:
+            order_query = "SELECT COALESCE(SUM(QResidual_g), 0) as order_g_total FROM M8_Order_Going WHERE PN_g = ?"
+        
+        order_result = pd.read_sql(order_query, conn, params=[pn])
+        order_g_total = order_result.iloc[0]['order_g_total'] if not order_result.empty else 0
+        
+        # 고객명 조회
+        if IS_STREAMLIT_CLOUD:
+            customer_query = "SELECT Customer_g FROM M8_Order_Going WHERE PN_g = %s ORDER BY DDeadline_g ASC LIMIT 1"
+        else:
+            customer_query = "SELECT TOP 1 Customer_g FROM M8_Order_Going WHERE PN_g = ? ORDER BY DDeadline_g ASC"
+
+        customer_result = pd.read_sql(customer_query, conn, params=[pn])
+        customer_name = customer_result.iloc[0]['Customer_g'] if not customer_result.empty else "-"
+
+        # 초과수량 계산
+        excess_quantity = stock_total + wip_total - order_g_total
+        
+        result_data.append({
+            'PN': pn,
+            '선택': False,
+            '초과수량': int(excess_quantity),
+            '고객명': customer_name,
+            '재고합계': int(stock_total),
+            '재공합계': int(wip_total),
+            '미납수주합계': int(order_g_total)
+        })
+    
+    # 나머지 처리는 기존과 동일...
