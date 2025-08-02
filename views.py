@@ -7,23 +7,17 @@ from db_config import get_connection, IS_STREAMLIT_CLOUD
 def show_pn_details(conn, pn):
     # 상세 정보 시각화 코드...
 
-    # 재고 현황
+    # 재고 현황 조회
     if IS_STREAMLIT_CLOUD:
         query = "SELECT PN_s As PN, LN_s As LN, Qty_s As 재고수량 FROM M8_MG_Stock WHERE PN_s = %s ORDER BY LN DESC"
     else:
         query = "SELECT PN_s As PN, LN_s As LN, Qty_s As 재고수량 FROM M8_MG_Stock WHERE PN_s = ? ORDER BY LN DESC"
 
     stock_df = pd.read_sql(query, conn, params=[pn])
-    total_qty = stock_df["재고수량"].sum()
-
-    st.markdown( f"<h5 style='margin-top:20px;'>🔸 재고 합계 ( {total_qty:,}개 )</h5>", unsafe_allow_html=True)
-    st.markdown("<hr style='margin-top:2px; margin-bottom:2px;'>", unsafe_allow_html=True)
-
-    with st.expander(f"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▶ 재고 현황", expanded=True):
-        st.dataframe(stock_df)
+    stock_total = stock_df["재고수량"].sum()
 
 
-    # 재공 현황
+    # 재공 현황 조회
 
     query = "SELECT LN_w AS LN, PN_w AS PN, SWIP_w AS 공정, NDate_Do_w AS 작업일, QWFR_w AS 웨이퍼, QHMG_w AS 반제품, ND_w As NetDie, EYield_w As 예상수율, QGoods_w As 예상양품"
     if IS_STREAMLIT_CLOUD:
@@ -32,13 +26,10 @@ def show_pn_details(conn, pn):
         query = query + " FROM M8_LOT_WIP WHERE PN_w = ? ORDER BY 작업일"
     
     wip_df = pd.read_sql(query, conn, params=[pn])
-    total_qty = wip_df["예상양품"].sum()
-
-    with st.expander(f"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▶ 재공 합계 ( {total_qty:,}개 )"):
-        st.dataframe(wip_df)
+    wip_total = wip_df["예상양품"].sum()
 
 
-    # 미납 수주
+    # 미납 수주 조회
     query = "SELECT DDeadline_g As 납기일, PN_g As PN, TypeOut_g As 구분, PKG_g As 패키지, Customer_g As 고객명, QResidual_g As 미납수량"
     if IS_STREAMLIT_CLOUD:
         query = query + " FROM M8_Order_Going WHERE PN_g = %s ORDER BY 납기일"
@@ -46,13 +37,37 @@ def show_pn_details(conn, pn):
         query = query + " FROM M8_Order_Going WHERE PN_g = ? ORDER BY 납기일"
     
     order_g_df = pd.read_sql(query, conn, params=[pn])
-    total_qty = order_g_df["미납수량"].sum()
+    order_g_total = order_g_df["미납수량"].sum()
 
-    st.markdown( f"<h5 style='margin-top:20px;'>🔸 미납수주 합계 ( {total_qty:,}개 )</h5>", unsafe_allow_html=True)
+
+
+    # === 초과 수량 계산 및 표시 ===
+    excess_qty = stock_total + wip_total - order_g_total
+    
+    # 초과 수량 표시
+    if excess_qty >= 0:
+        st.markdown(f"<h5 style='margin-top:10px; color: #28a745;text-align: right;'>📈 초과 수량 : {excess_qty:,} 개</h5>", unsafe_allow_html=True)
+    else:
+        st.markdown(f"<h5 style='margin-top:10px; color: #dc3545;text-align: right;'>📉 초과 수량 : {excess_qty:,} 개</h5>", unsafe_allow_html=True)
+
+        # 재고 수량 표시
+    st.markdown( f"<h5 style='margin-top:20px;'>🔸 재고 합계 ( {stock_total:,}개 )</h5>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin-top:2px; margin-bottom:2px;'>", unsafe_allow_html=True)
+
+    with st.expander(f"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▶ 재고 현황", expanded=True):
+        st.dataframe(stock_df)
+
+        # 재공 수량 표시
+    with st.expander(f"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▶ 재공 합계 ( {wip_total:,}개 )"):
+        st.dataframe(wip_df)
+
+        # 미납수주 수량 표시
+    st.markdown( f"<h5 style='margin-top:20px;'>🔸 미납수주 합계 ( {order_g_total:,}개 )</h5>", unsafe_allow_html=True)
     st.markdown("<hr style='margin-top:2px; margin-bottom:2px;'>", unsafe_allow_html=True)
 
     with st.expander(f"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▶ 미납수주 현황", expanded=True):
         st.dataframe(order_g_df)
+
 
 
     # 납품 정보

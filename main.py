@@ -3,6 +3,7 @@ from auth import render_login_form, render_user_info
 from ui_saw import render_saw_tab
 from ui_microwave import render_microwave_tab
 from ui_project import render_project_tab
+from ui_updates import render_updates_tab
 
 # ----------------------------
 # 세션 상태 초기화
@@ -54,7 +55,7 @@ if st.session_state.logged_in:
         </style>
     """, unsafe_allow_html=True)
 
-    tabs = st.tabs(["SAW", "Microwave", "Project"])
+    tabs = st.tabs(["SAW", "Microwave", "Project", "News"])
 
     with tabs[0]:
         render_saw_tab()
@@ -64,6 +65,9 @@ if st.session_state.logged_in:
 
     with tabs[2]:
         render_project_tab()
+
+    with tabs[3]:  # 새로운 탭 추가
+        render_updates_tab()
 
 else:
     st.info("사이드바에서 로그인을 해주세요.")                

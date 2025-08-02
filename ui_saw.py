@@ -1,6 +1,6 @@
 import streamlit as st
 from db_config import get_connection
-from handlers import handle_pn_search, handle_order_going_search, handle_wip_search
+from handlers import handle_pn_search, handle_order_going_search, handle_wip_search, handle_excess_quantity_search
 from views import show_pn_details
 
 def render_saw_tab():
@@ -30,12 +30,12 @@ def render_saw_tab():
     col1, col_dummy, col2, col3 = st.columns([1.2, 0.5, 1, 1])
 
     with col1:
-        # 현재 입력값 결정 (우선순위: 검색에서 선택한 PN > 기존 selected_pn)
-        current_value = st.session_state.get("selected_pn_from_search", "") or st.session_state.get("selected_pn", "")
-        
+        # Session State에 키가 없으면 초기값 설정
+        if "pn_input" not in st.session_state:
+            st.session_state["pn_input"] = ""
+            
         pn_input = st.text_input(
             "🖱️ PN 검색",
-            value=current_value,
             key="pn_input",
             placeholder="PN 입력"
         )
@@ -63,14 +63,19 @@ def render_saw_tab():
                     st.warning("PN을 입력해 주세요.")
 
     with col2:
+        if st.button("재공 검색"):
+            st.session_state["reset_pn_input"] = True  # 초기화 플래그 설정
+            st.session_state.search_mode = "wip_search"
+            st.rerun()
+        
         if st.button("미납수주 검색"):
             st.session_state["reset_pn_input"] = True  # 초기화 플래그 설정
             st.session_state.search_mode = "order_going"
             st.rerun()
 
-        if st.button("재공 검색"):
+        if st.button("초과수량 검색"):
             st.session_state["reset_pn_input"] = True  # 초기화 플래그 설정
-            st.session_state.search_mode = "wip_search"
+            st.session_state.search_mode = "excess_quantity_search"
             st.rerun()
 
     with col3:
@@ -115,6 +120,8 @@ def render_saw_tab():
                 handle_order_going_search(conn)
             case "wip_search":
                 handle_wip_search(conn)
+            case "excess_quantity_search":  # 새로 추가된 케이스
+                handle_excess_quantity_search(conn)
             case _:
                 st.info("PN을 입력하거나 검색 버튼을 눌러주세요.")
         conn.close()
