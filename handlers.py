@@ -61,41 +61,139 @@ def handle_order_going_search(conn):
         ORDER BY 납기일
     '''
     df = pd.read_sql(query, conn)
+
+    # 데이터 유무 확인
+    if df.empty:
+        st.warning("미납 수주 데이터가 없습니다.")
+        return
+
+    # ===== 집계 영역 (리스트 위에 표시) =====
+    total_orders = len(df)                                   # 미납수주 건
+    unique_pn = df["PN"].nunique()                           # PN 수(중복배제)
+    total_qty = int(df["미납수량"].fillna(0).sum())          # 미납수량 합계
+
+    st.subheader("🛒 미납 수주 현황", divider=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"<span style='font-size:14px;'>총 미납수주 건</span><br>"
+                    f"<b style='font-size:27px;'>{total_orders:,}</b>",
+                    unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"<span style='font-size:14px;'>PN 수</span><br>"
+                    f"<b style='font-size:27px;'>{unique_pn:,}</b>",
+                    unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"<span style='font-size:14px;'>미납수량 합계</span><br>"
+                    f"<b style='font-size:27px;'>{total_qty:,}</b>",
+                    unsafe_allow_html=True)
+
+    # ===== 리스트(선택 UI) =====
     pn_index = df.columns.get_loc("PN") + 1
     df.insert(pn_index, "선택", False)
 
-    st.subheader("🛒 미납 수주 현황", divider=True)
-    edited_df = st.data_editor(df, use_container_width=True, num_rows="fixed", key="order_table")
+    edited_df = st.data_editor(
+        df,
+        use_container_width=True,
+        num_rows="fixed",
+        key="order_table"
+    )
     selected_rows = edited_df[edited_df["선택"] == True]
 
     if len(selected_rows) < 1:
-        st.info("→ 하나의 PN을 선택해 주세요.")
+        st.info("하나의 PN을 선택해 주세요.")
     else:
-        st.session_state.selected_pn_from_search = selected_rows.iloc[0]["PN"]
+        selected_pn = selected_rows.iloc[0]["PN"]
+
+        # 상세 즉시 진입을 위한 플래그 추가 (핵심 수정)
+        st.session_state.selected_pn_from_search = selected_pn
+        st.session_state.pn_search_completed = True
+        st.session_state.show_details_immediately = True
+
+        # (선택) 기존 동작 호환
         st.session_state.search_mode = "pn_search"
+
+        st.success(f"[{selected_pn}] PN을 선택하셨습니다.")
         st.rerun()
+
 
 def handle_wip_search(conn):
     # 전체 재공 리스트를 표시하고 사용자가 선택한 PN으로 전환
     query = '''
-        SELECT PN_w AS PN, LN_w AS LN, SWIP_w AS 공정, QWFR_w AS 웨이퍼, QHMG_w AS 반제품, ND_w As NetDie, EYield_w As 예상수율, QGoods_w As 예상양품, NDate_Do_w AS 작업일
+        SELECT PN_w AS PN, LN_w AS LN, SWIP_w AS 공정,
+               QWFR_w AS 웨이퍼,          -- 웨이퍼 수량
+               QHMG_w AS 반제품,          -- 반제품 수량
+               ND_w   AS NetDie,
+               EYield_w AS 예상수율,
+               QGoods_w AS 예상양품,      -- 예상 양품 수량
+               NDate_Do_w AS 작업일
         FROM M8_LOT_WIP
         ORDER BY 작업일
     '''
     df = pd.read_sql(query, conn)
+
+    # 데이터 유무 확인
+    if df.empty:
+        st.warning("재공 데이터가 없습니다.")
+        return
+
+    # ===== 집계 영역 (리스트 위에 표시) =====
+    total_wip_rows = len(df)                          # 재공건수
+    unique_pn = df["PN"].nunique()                    # PN 수(중복배제)
+    wafer_sum = int(df["웨이퍼"].fillna(0).sum())     # 웨이퍼합계
+    semi_sum  = int(df["반제품"].fillna(0).sum())     # 반제품합계
+    goods_sum = int(df["예상양품"].fillna(0).sum())   # 예상양품합계
+
+    st.subheader("📦 재공 현황", divider=True)
+
+    col1, col2, col3 = st.columns([1,1,2])
+    with col1:
+        st.markdown(
+            f"<span style='font-size:14px;'>재공 건수</span><br>"
+            f"<b style='font-size:27px;'>{total_wip_rows:,}</b>",
+            unsafe_allow_html=True
+        )
+    with col2:
+        st.markdown(
+            f"<span style='font-size:14px;'>PN 수</span><br>"
+            f"<b style='font-size:27px;'>{unique_pn:,}</b>",
+            unsafe_allow_html=True
+        )
+    with col3:
+        st.markdown(
+        f"<span style='font-size:14px;'>수량 합계 (웨이퍼 / 반제품 / 예상양품)</span><br>"
+        f"<b style='font-size:25px;'> {wafer_sum:,} / {semi_sum:,} / {goods_sum:,}</b>",
+        unsafe_allow_html=True
+        )
+
+
+    # ===== 리스트(선택 UI) =====
     pn_index = df.columns.get_loc("PN") + 1
     df.insert(pn_index, "선택", False)
 
-    st.subheader("📦 재공 현황", divider=True)
-    edited_df = st.data_editor(df, use_container_width=True, num_rows="fixed", key="wip_table")
+    edited_df = st.data_editor(
+        df,
+        use_container_width=True,
+        num_rows="fixed",
+        key="wip_table"
+    )
     selected_rows = edited_df[edited_df["선택"] == True]
 
     if len(selected_rows) < 1:
-        st.info("→ 하나의 PN을 선택해 주세요.")
+        st.info("하나의 PN을 선택해 주세요.")
     else:
-        st.session_state.selected_pn_from_search = selected_rows.iloc[0]["PN"]
+        selected_pn = selected_rows.iloc[0]["PN"]
+
+        # 상세 즉시 진입을 위한 플래그 추가 (핵심 수정)
+        st.session_state.selected_pn_from_search = selected_pn
+        st.session_state.pn_search_completed = True
+        st.session_state.show_details_immediately = True
+
+        # (선택) 기존 동작 호환
         st.session_state.search_mode = "pn_search"
+
+        st.success(f"[{selected_pn}] PN을 선택하셨습니다.")
         st.rerun()
+
 
 def handle_excess_quantity_search(conn):
     """초과수량 검색 - SQL Server용 JOIN 최적화 버전"""
@@ -223,18 +321,19 @@ def handle_excess_quantity_search(conn):
     total_positive = len(df[df['초과수량'] >= 0])
     
     col1, col2, col3 = st.columns(3)
+
     with col1:
-        st.metric("전체 PN 수", len(df))
+        st.markdown(f"<span style='font-size:14px;'>전체 PN 수</span><br>"
+                    f"<b style='font-size:27px;'>{len(df):,}</b>",
+                    unsafe_allow_html=True)
     with col2:
-        st.metric("충분 PN 수", total_positive)
+        st.markdown(f"<span style='font-size:14px;'>충분 PN 수</span><br>"
+                    f"<b style='font-size:27px;'>{total_positive:,}</b>",
+                    unsafe_allow_html=True)
     with col3:
-        st.markdown(
-            f"""
-            <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.25rem;">부족 PN 수</div>
-            <div style="font-size: 2rem; font-weight: 600; color: #ff4b4b;">{total_negative}</div>
-            """,
-            unsafe_allow_html=True
-        )
+        st.markdown(f"<span style='font-size:14px;'>부족 PN 수</span><br>"
+                    f"<b style='font-size:27px; color: red;'>{total_negative:,}</b>",
+                    unsafe_allow_html=True)
 
     # 초과수량에 따른 시각적 표시
     def format_excess_quantity(value):
